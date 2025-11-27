@@ -1,0 +1,2280 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>📈 TRADE SIMULATOR - Simulador Educativo de Trading</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', sans-serif; box-sizing: border-box; }
+        
+        :root {
+            --bg-primary: #0a0e17;
+            --bg-secondary: #0f1419;
+            --bg-card: #151c28;
+            --accent: #3b82f6;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        html, body {
+            overflow-x: hidden;
+            width: 100%;
+        }
+
+        body { 
+            background: var(--bg-primary);
+            color: #e2e8f0;
+            background-image: 
+                radial-gradient(ellipse at 0% 0%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 100% 100%, rgba(16, 185, 129, 0.05) 0%, transparent 50%);
+            min-height: 100vh;
+        }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+
+        .glass { 
+            background: rgba(21, 28, 40, 0.95); 
+            backdrop-filter: blur(20px); 
+            border: 1px solid rgba(255,255,255,0.05); 
+        }
+
+        .asset-row:hover { background: rgba(59, 130, 246, 0.1); }
+        .asset-row.selected { background: rgba(59, 130, 246, 0.15); border-color: rgba(59, 130, 246, 0.5); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-in { animation: fadeIn 0.3s ease-out; }
+
+        @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .pulse-dot { animation: pulse-dot 1.5s infinite; }
+
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+        .shake { animation: shake 0.4s ease-in-out; }
+
+        @keyframes typing { 0% { opacity: .2; } 20% { opacity: 1; } 100% { opacity: .2; } }
+        .typing-dot { animation: typing 1.4s infinite; }
+        .typing-dot:nth-child(2) { animation-delay: .2s; }
+        .typing-dot:nth-child(3) { animation-delay: .4s; }
+
+        input[type="range"] { -webkit-appearance: none; height: 8px; background: #1f2937; border-radius: 4px; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; background: linear-gradient(135deg, #3b82f6, #8b5cf6); border-radius: 50%; cursor: pointer; border: 2px solid white; }
+
+        .xp-bar { background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899); background-size: 200% 100%; animation: gradient 3s ease infinite; }
+        @keyframes gradient { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+
+        .btn-long { background: linear-gradient(135deg, #059669, #10b981); }
+        .btn-long:hover { background: linear-gradient(135deg, #047857, #059669); transform: translateY(-1px); }
+        .btn-short { background: linear-gradient(135deg, #dc2626, #ef4444); }
+        .btn-short:hover { background: linear-gradient(135deg, #b91c1c, #dc2626); transform: translateY(-1px); }
+        .btn-analyze { background: linear-gradient(135deg, #7c3aed, #8b5cf6); }
+        .btn-analyze:hover { background: linear-gradient(135deg, #6d28d9, #7c3aed); transform: translateY(-1px); }
+
+        .category-btn.active { background: #3b82f6; color: white; }
+
+        .connection-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .connection-dot.connected { background: #10b981; box-shadow: 0 0 8px #10b981; }
+        .connection-dot.connecting { background: #f59e0b; animation: pulse-dot 1s infinite; }
+        .connection-dot.disconnected { background: #ef4444; }
+
+        .gainer { border-left: 3px solid #10b981; }
+        .loser { border-left: 3px solid #ef4444; }
+
+        .crypto-icon { 
+            width: 32px; 
+            height: 32px; 
+            border-radius: 50%; 
+            object-fit: cover;
+            background: linear-gradient(135deg, #374151, #1f2937);
+            flex-shrink: 0;
+        }
+
+        .crypto-icon-lg {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            background: linear-gradient(135deg, #374151, #1f2937);
+            flex-shrink: 0;
+        }
+
+        .crypto-icon-fallback {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 11px;
+            color: white;
+        }
+
+        .crypto-icon-lg.crypto-icon-fallback {
+            font-size: 14px;
+        }
+
+        /* Mobile Navigation */
+        .mobile-nav {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .mobile-nav {
+                display: flex;
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background: rgba(15, 20, 25, 0.98);
+                backdrop-filter: blur(20px);
+                border-top: 1px solid rgba(255,255,255,0.1);
+                z-index: 100;
+                padding: 8px 0;
+                padding-bottom: env(safe-area-inset-bottom, 8px);
+            }
+
+            .mobile-nav button {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 2px;
+                padding: 8px 4px;
+                color: #64748b;
+                font-size: 10px;
+                transition: all 0.2s;
+            }
+
+            .mobile-nav button.active {
+                color: #3b82f6;
+            }
+
+            .mobile-nav button span.icon {
+                font-size: 20px;
+            }
+
+            main {
+                padding-bottom: 80px !important;
+            }
+
+            .desktop-nav {
+                display: none !important;
+            }
+        }
+
+        /* Responsive Header */
+        @media (max-width: 640px) {
+            .header-logo h1 {
+                font-size: 14px !important;
+            }
+            .header-logo p {
+                display: none;
+            }
+            .wallet-display {
+                padding: 6px 10px !important;
+            }
+            .wallet-display p:first-child {
+                display: none;
+            }
+            .wallet-display p:last-child {
+                font-size: 14px !important;
+            }
+            .level-display {
+                display: none !important;
+            }
+            .connection-status {
+                display: none !important;
+            }
+        }
+
+        /* Responsive Grid */
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr !important;
+            }
+            .asset-sidebar {
+                display: none;
+            }
+            .asset-sidebar.show-mobile {
+                display: block;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                z-index: 90;
+                background: var(--bg-primary);
+                padding: 16px;
+                overflow-y: auto;
+            }
+            .right-sidebar {
+                display: none;
+            }
+            .right-sidebar.show-mobile {
+                display: block;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                z-index: 90;
+                background: var(--bg-primary);
+                padding: 16px;
+                overflow-y: auto;
+            }
+        }
+
+        /* Analysis Panel */
+        .analysis-panel {
+            background: linear-gradient(135deg, rgba(124, 58, 237, 0.1), rgba(139, 92, 246, 0.05));
+            border: 1px solid rgba(139, 92, 246, 0.3);
+        }
+
+        .signal-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+        .signal-buy { background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
+        .signal-sell { background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .signal-hold { background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); }
+
+        .confidence-bar {
+            height: 6px;
+            border-radius: 3px;
+            background: #1f2937;
+            overflow: hidden;
+        }
+        .confidence-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.5s ease;
+        }
+
+        /* Close button for mobile panels */
+        .close-panel-btn {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+            z-index: 10;
+        }
+
+        /* Responsive Trade Buttons */
+        @media (max-width: 480px) {
+            .trade-buttons {
+                grid-template-columns: 1fr !important;
+            }
+            .trade-buttons button {
+                padding: 16px !important;
+            }
+        }
+
+        /* Responsive Indicators */
+        @media (max-width: 480px) {
+            .indicators-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
+            }
+        }
+
+        /* Chart Container */
+        .chart-container {
+            height: 250px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 300px;
+            }
+        }
+
+        /* Asset Header Mobile */
+        @media (max-width: 480px) {
+            .asset-header {
+                flex-direction: column;
+                gap: 12px;
+                align-items: flex-start !important;
+            }
+            .asset-header .text-right {
+                text-align: left !important;
+            }
+            #currentPrice {
+                font-size: 24px !important;
+            }
+        }
+
+        /* Modal Responsive */
+        .modal-content {
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        @media (max-width: 480px) {
+            .modal-content {
+                margin: 8px;
+                max-height: 95vh;
+            }
+        }
+
+        /* Analysis Modal */
+        .analysis-result {
+            white-space: pre-line;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body class="flex flex-col">
+
+    <!-- BANNER EDUCATIVO -->
+    <div class="bg-gradient-to-r from-amber-500 to-orange-500 text-black text-[10px] sm:text-xs font-bold text-center py-1.5 uppercase tracking-widest px-2">
+        🎮 <span data-i18n="banner">SIMULADOR EDUCATIVO • DINERO 100% FICTICIO • APRENDE SIN RIESGO</span> 🎮
+    </div>
+
+    <!-- HEADER -->
+    <header class="glass sticky top-0 z-50 border-b border-white/5">
+        <div class="max-w-[1800px] mx-auto px-3 sm:px-4 h-14 flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2 sm:gap-3 header-logo">
+                <div class="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-emerald-500 to-blue-600 rounded-xl flex items-center justify-center text-lg sm:text-xl shadow-lg flex-shrink-0">📈</div>
+                <div>
+                    <h1 class="font-extrabold text-white text-sm sm:text-lg tracking-tight">TRADE <span class="text-emerald-400">SIMULATOR</span></h1>
+                    <p class="text-[9px] text-slate-500 uppercase tracking-wider" data-i18n="subtitle">Simulador Educativo v9.0</p>
+                </div>
+            </div>
+
+            <!-- Connection Status -->
+            <div id="connectionStatus" class="connection-status flex items-center gap-2 bg-slate-800/50 px-2 sm:px-3 py-1.5 rounded-lg">
+                <div id="connectionDot" class="connection-dot connecting"></div>
+                <span id="connectionText" class="text-[10px] sm:text-xs text-slate-400" data-i18n="connecting">Conectando...</span>
+            </div>
+
+            <!-- Desktop Nav -->
+            <nav class="desktop-nav hidden md:flex items-center gap-1 bg-slate-800/50 p-1 rounded-lg">
+                <button onclick="app.switchView('terminal')" id="nav-terminal" class="nav-btn px-3 sm:px-4 py-2 text-xs font-medium rounded-md transition-all bg-blue-600 text-white" data-i18n="nav_terminal">📊 Terminal</button>
+                <button onclick="app.switchView('portfolio')" id="nav-portfolio" class="nav-btn px-3 sm:px-4 py-2 text-xs font-medium rounded-md transition-all hover:bg-white/10" data-i18n="nav_portfolio">💼 Cartera</button>
+                <button onclick="app.switchView('learn')" id="nav-learn" class="nav-btn px-3 sm:px-4 py-2 text-xs font-medium rounded-md transition-all hover:bg-white/10" data-i18n="nav_learn">📚 Aprender</button>
+            </nav>
+
+            <!-- Right Side -->
+            <div class="flex items-center gap-2 sm:gap-3">
+                <!-- Language Selector -->
+                <div class="relative">
+                    <select id="langSelector" onchange="app.changeLanguage(this.value)" class="appearance-none bg-slate-800 border border-slate-700 text-white text-[10px] sm:text-xs rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 pr-6 sm:pr-8 cursor-pointer focus:outline-none focus:border-blue-500">
+                        <option value="es">🇪🇸 ES</option>
+                        <option value="en">🇺🇸 EN</option>
+                        <option value="pt">🇧🇷 PT</option>
+                        <option value="de">🇩🇪 DE</option>
+                        <option value="it">🇮🇹 IT</option>
+                    </select>
+                    <div class="absolute right-1.5 sm:right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-[10px]">▼</div>
+                </div>
+
+                <!-- Level -->
+                <div class="level-display hidden sm:flex items-center gap-2 bg-slate-800/50 px-3 py-1.5 rounded-lg">
+                    <div class="text-right">
+                        <div class="flex items-center gap-2">
+                            <span id="playerRank" class="text-[10px] font-bold text-blue-400 uppercase">Novato</span>
+                            <span class="bg-gradient-to-r from-blue-500 to-purple-500 text-[10px] text-white px-2 py-0.5 rounded-full font-bold">LVL <span id="playerLevel">1</span></span>
+                        </div>
+                        <div class="w-20 h-1.5 bg-slate-700 rounded-full overflow-hidden mt-1">
+                            <div id="xpBar" class="xp-bar h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Wallet -->
+                <div onclick="app.refillBalance()" class="wallet-display bg-slate-800/80 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl border border-slate-700 hover:border-emerald-500/50 transition cursor-pointer group">
+                    <p class="text-[9px] text-slate-500 uppercase group-hover:text-emerald-400" data-i18n="virtual_balance">💰 Saldo Virtual</p>
+                    <p id="walletBalance" class="text-base sm:text-lg font-mono font-bold text-emerald-400">$10,000.00</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- MOBILE NAVIGATION -->
+    <nav class="mobile-nav">
+        <button onclick="app.switchView('terminal')" id="mob-nav-terminal" class="active">
+            <span class="icon">📊</span>
+            <span data-i18n="nav_terminal_short">Terminal</span>
+        </button>
+        <button onclick="app.toggleMobilePanel('assets')" id="mob-nav-assets">
+            <span class="icon">🪙</span>
+            <span data-i18n="nav_assets">Activos</span>
+        </button>
+        <button onclick="app.toggleMobilePanel('positions')" id="mob-nav-positions">
+            <span class="icon">📈</span>
+            <span data-i18n="nav_positions">Posiciones</span>
+        </button>
+        <button onclick="app.switchView('portfolio')" id="mob-nav-portfolio">
+            <span class="icon">💼</span>
+            <span data-i18n="nav_portfolio_short">Cartera</span>
+        </button>
+        <button onclick="app.switchView('learn')" id="mob-nav-learn">
+            <span class="icon">📚</span>
+            <span data-i18n="nav_learn_short">Aprender</span>
+        </button>
+    </nav>
+
+    <!-- NOTIFICATIONS -->
+    <div id="notifications" class="fixed top-20 right-4 z-[100] space-y-2 max-w-sm pointer-events-none"></div>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 max-w-[1800px] mx-auto w-full p-3 sm:p-4">
+
+        <!-- VIEW: TERMINAL -->
+        <div id="view-terminal" class="main-grid grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 fade-in">
+            
+            <!-- LEFT: Asset List -->
+            <aside id="assetSidebar" class="asset-sidebar lg:col-span-3 space-y-3">
+                <button onclick="app.toggleMobilePanel('assets')" class="close-panel-btn lg:hidden">&times;</button>
+                
+                <!-- Search & Categories -->
+                <div class="glass rounded-xl p-3 space-y-3">
+                    <input type="text" id="searchAsset" placeholder="🔍 Buscar..." data-i18n-placeholder="search_placeholder" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 text-white">
+                    
+                    <div class="flex gap-1 flex-wrap" id="categoryButtons">
+                        <button onclick="app.filterCategory('all', this)" class="category-btn active flex-1 py-1.5 text-[10px] font-bold rounded-lg bg-slate-700 transition" data-i18n="cat_all">TODOS</button>
+                        <button onclick="app.filterCategory('gainers', this)" class="category-btn flex-1 py-1.5 text-[10px] font-bold rounded-lg bg-slate-700 transition" data-i18n="cat_gainers">📈 TOP</button>
+                        <button onclick="app.filterCategory('losers', this)" class="category-btn flex-1 py-1.5 text-[10px] font-bold rounded-lg bg-slate-700 transition" data-i18n="cat_losers">📉 BAJA</button>
+                    </div>
+
+                    <div class="flex justify-between text-[10px] text-slate-500">
+                        <span data-i18n="assets_loaded">Activos cargados:</span>
+                        <span id="assetCount" class="text-blue-400 font-bold">0</span>
+                    </div>
+                </div>
+
+                <!-- Asset List -->
+                <div id="assetsList" class="space-y-1 max-h-[calc(100vh-320px)] overflow-y-auto pr-1">
+                    <div class="flex items-center justify-center py-20">
+                        <div class="text-center">
+                            <div class="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+                            <p class="text-sm text-slate-400" data-i18n="loading_assets">Cargando activos...</p>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- CENTER: Chart & Actions -->
+            <section class="lg:col-span-6 space-y-3 sm:space-y-4">
+                <!-- Asset Header -->
+                <div class="glass rounded-xl p-3 sm:p-4">
+                    <div class="asset-header flex items-center justify-between">
+                        <div class="flex items-center gap-2 sm:gap-3">
+                            <img id="assetIconImg" src="" alt="" class="crypto-icon-lg hidden" onerror="this.classList.add('hidden'); document.getElementById('assetIconFallback').classList.remove('hidden');">
+                            <div id="assetIconFallback" class="crypto-icon-lg crypto-icon-fallback bg-gradient-to-br from-orange-400 to-orange-600">₿</div>
+                            <div>
+                                <h2 id="chartTitle" class="text-xl sm:text-2xl font-bold text-white">Bitcoin</h2>
+                                <div class="flex items-center gap-2 mt-1 flex-wrap">
+                                    <span id="assetSymbol" class="text-[10px] sm:text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded">BTCUSDT</span>
+                                    <span id="liveIndicator" class="text-[10px] text-emerald-400 flex items-center gap-1">
+                                        <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full pulse-dot"></span>
+                                        <span data-i18n="live">EN VIVO</span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div id="currentPrice" class="text-2xl sm:text-3xl font-mono font-bold text-white">$0.00</div>
+                            <div id="priceChange" class="text-sm font-mono text-emerald-400">+0.00%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chart -->
+                <div class="glass rounded-xl p-3 sm:p-4 chart-container">
+                    <canvas id="priceChart"></canvas>
+                </div>
+
+                <!-- Indicators -->
+                <div class="indicators-grid grid grid-cols-4 gap-2">
+                    <div class="glass rounded-lg p-2 sm:p-3 text-center">
+                        <p class="text-[9px] sm:text-[10px] text-slate-500 uppercase">RSI (14)</p>
+                        <p id="rsiValue" class="text-base sm:text-lg font-bold text-white">--</p>
+                        <p id="rsiLabel" class="text-[8px] sm:text-[9px] text-slate-500">--</p>
+                    </div>
+                    <div class="glass rounded-lg p-2 sm:p-3 text-center">
+                        <p class="text-[9px] sm:text-[10px] text-slate-500 uppercase">24h Vol</p>
+                        <p id="volumeValue" class="text-base sm:text-lg font-bold text-white">--</p>
+                    </div>
+                    <div class="glass rounded-lg p-2 sm:p-3 text-center">
+                        <p class="text-[9px] sm:text-[10px] text-slate-500 uppercase">24h High</p>
+                        <p id="highValue" class="text-base sm:text-lg font-bold text-emerald-400">--</p>
+                    </div>
+                    <div class="glass rounded-lg p-2 sm:p-3 text-center">
+                        <p class="text-[9px] sm:text-[10px] text-slate-500 uppercase">24h Low</p>
+                        <p id="lowValue" class="text-base sm:text-lg font-bold text-red-400">--</p>
+                    </div>
+                </div>
+
+                <!-- AI Analysis Button -->
+                <button onclick="app.analyzeAsset()" class="btn-analyze w-full group relative overflow-hidden p-4 rounded-2xl transition-all text-center shadow-lg">
+                    <div class="absolute top-2 right-4 text-3xl opacity-20 group-hover:opacity-40 transition">🤖</div>
+                    <div class="text-purple-200 font-bold text-[10px] uppercase tracking-widest mb-1" data-i18n="ai_analysis">Análisis Inteligente</div>
+                    <div class="text-xl font-bold text-white" data-i18n="analyze_btn">🔮 ANALIZAR ACTIVO</div>
+                    <div class="text-[10px] text-purple-200/70 mt-1" data-i18n="analyze_desc">→ Obtén una recomendación basada en datos</div>
+                </button>
+
+                <!-- Trade Buttons -->
+                <div class="trade-buttons grid grid-cols-2 gap-3 sm:gap-4">
+                    <button onclick="app.openTradeModal('long')" class="btn-long group relative overflow-hidden p-4 sm:p-5 rounded-2xl transition-all text-left shadow-lg">
+                        <div class="absolute top-2 right-2 text-3xl sm:text-4xl opacity-20 group-hover:opacity-40 transition">📈</div>
+                        <div class="text-emerald-200 font-bold text-[9px] sm:text-[10px] uppercase tracking-widest mb-1" data-i18n="bullish">Alcista (Long)</div>
+                        <div class="text-xl sm:text-2xl font-bold text-white" data-i18n="buy">COMPRAR</div>
+                        <div class="text-[9px] sm:text-[10px] text-emerald-200/70 mt-1" data-i18n="buy_desc">→ Ganas si el precio SUBE</div>
+                    </button>
+                    
+                    <button onclick="app.openTradeModal('short')" class="btn-short group relative overflow-hidden p-4 sm:p-5 rounded-2xl transition-all text-left shadow-lg">
+                        <div class="absolute top-2 right-2 text-3xl sm:text-4xl opacity-20 group-hover:opacity-40 transition">📉</div>
+                        <div class="text-red-200 font-bold text-[9px] sm:text-[10px] uppercase tracking-widest mb-1" data-i18n="bearish">Bajista (Short)</div>
+                        <div class="text-xl sm:text-2xl font-bold text-white" data-i18n="sell">VENDER</div>
+                        <div class="text-[9px] sm:text-[10px] text-red-200/70 mt-1" data-i18n="sell_desc">→ Ganas si el precio BAJA</div>
+                    </button>
+                </div>
+
+                <!-- Market Summary -->
+                <div class="glass rounded-xl p-3 sm:p-4 border border-slate-700/50">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-bold text-slate-300 flex items-center gap-2 text-sm">📊 <span data-i18n="market_summary">Resumen del Mercado</span></h3>
+                    </div>
+                    <div id="marketSummary" class="grid grid-cols-3 gap-2 sm:gap-3 text-center">
+                        <div class="bg-slate-800/50 p-2 sm:p-3 rounded-lg">
+                            <p class="text-[9px] sm:text-[10px] text-slate-500 uppercase" data-i18n="market_cap">Cap. Mercado</p>
+                            <p id="marketCap" class="text-xs sm:text-sm font-bold text-white">--</p>
+                        </div>
+                        <div class="bg-slate-800/50 p-2 sm:p-3 rounded-lg">
+                            <p class="text-[9px] sm:text-[10px] text-slate-500 uppercase" data-i18n="gainers_count">Ganadores</p>
+                            <p id="gainersCount" class="text-xs sm:text-sm font-bold text-emerald-400">--</p>
+                        </div>
+                        <div class="bg-slate-800/50 p-2 sm:p-3 rounded-lg">
+                            <p class="text-[9px] sm:text-[10px] text-slate-500 uppercase" data-i18n="losers_count">Perdedores</p>
+                            <p id="losersCount" class="text-xs sm:text-sm font-bold text-red-400">--</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- RIGHT: Positions & Stats -->
+            <aside id="positionsSidebar" class="right-sidebar lg:col-span-3 space-y-3 sm:space-y-4">
+                <button onclick="app.toggleMobilePanel('positions')" class="close-panel-btn lg:hidden">&times;</button>
+
+                <!-- Open Positions -->
+                <div class="glass rounded-xl overflow-hidden">
+                    <div class="p-3 bg-slate-800/50 border-b border-white/5 flex justify-between items-center">
+                        <h3 class="text-xs font-bold uppercase text-white" data-i18n="open_positions">⚡ Posiciones Abiertas</h3>
+                        <button onclick="app.closeAllPositions()" class="text-[10px] text-red-400 hover:text-red-300" data-i18n="close_all">Cerrar Todo</button>
+                    </div>
+                    <div id="positionsList" class="max-h-[280px] overflow-y-auto p-2 space-y-2">
+                        <div class="text-center py-8 text-slate-500">
+                            <span class="text-3xl">💤</span>
+                            <p class="text-xs mt-2" data-i18n="no_positions">Sin posiciones abiertas</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stats -->
+                <div class="glass rounded-xl p-3 sm:p-4 space-y-3">
+                    <h4 class="text-xs font-bold text-slate-400 uppercase" data-i18n="stats">📊 Estadísticas</h4>
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span class="text-xs text-slate-500" data-i18n="total_equity">Patrimonio Total</span>
+                            <span id="totalEquity" class="text-sm font-mono font-bold text-white">$10,000.00</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-xs text-slate-500" data-i18n="unrealized_pnl">PnL No Realizado</span>
+                            <span id="unrealizedPnL" class="text-sm font-mono font-bold text-slate-400">$0.00</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-xs text-slate-500" data-i18n="win_rate">Win Rate</span>
+                            <span id="winRate" class="text-sm font-mono font-bold text-blue-400">--</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-xs text-slate-500" data-i18n="total_trades">Total Operaciones</span>
+                            <span id="totalTrades" class="text-sm font-mono font-bold text-purple-400">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Top Movers -->
+                <div class="glass rounded-xl p-3 sm:p-4">
+                    <h4 class="text-xs font-bold text-slate-400 uppercase mb-3" data-i18n="top_movers">🔥 Top Movers 24h</h4>
+                    <div id="topMovers" class="space-y-2">
+                        <div class="text-xs text-slate-500 text-center" data-i18n="loading">Cargando...</div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+
+        <!-- VIEW: PORTFOLIO -->
+        <div id="view-portfolio" class="hidden fade-in max-w-5xl mx-auto">
+            <h2 class="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6" data-i18n="portfolio_title">💼 Tu Cartera Virtual</h2>
+            
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
+                <div class="glass p-4 sm:p-5 rounded-xl border-t-4 border-blue-500">
+                    <p class="text-slate-400 text-[10px] sm:text-xs uppercase" data-i18n="available_balance">Saldo Disponible</p>
+                    <h3 id="pfBalance" class="text-lg sm:text-2xl font-bold text-white mt-1">$10,000.00</h3>
+                </div>
+                <div class="glass p-4 sm:p-5 rounded-xl border-t-4 border-emerald-500">
+                    <p class="text-slate-400 text-[10px] sm:text-xs uppercase" data-i18n="total_profits">Ganancias Totales</p>
+                    <h3 id="pfProfits" class="text-lg sm:text-2xl font-bold text-emerald-400 mt-1">$0.00</h3>
+                </div>
+                <div class="glass p-4 sm:p-5 rounded-xl border-t-4 border-red-500">
+                    <p class="text-slate-400 text-[10px] sm:text-xs uppercase" data-i18n="total_losses">Pérdidas Totales</p>
+                    <h3 id="pfLosses" class="text-lg sm:text-2xl font-bold text-red-400 mt-1">$0.00</h3>
+                </div>
+                <div class="glass p-4 sm:p-5 rounded-xl border-t-4 border-purple-500">
+                    <p class="text-slate-400 text-[10px] sm:text-xs uppercase" data-i18n="your_level">Tu Nivel</p>
+                    <h3 id="pfLevel" class="text-lg sm:text-2xl font-bold text-purple-400 mt-1">1</h3>
+                </div>
+            </div>
+
+            <div class="glass rounded-xl overflow-hidden">
+                <div class="p-3 sm:p-4 bg-slate-800/50 border-b border-white/5 flex justify-between items-center">
+                    <h3 class="font-bold text-white text-sm sm:text-base" data-i18n="trade_history">📜 Historial de Operaciones</h3>
+                    <button onclick="app.clearHistory()" class="text-xs text-slate-400 hover:text-red-400" data-i18n="clear">Limpiar</button>
+                </div>
+                <div id="historyList" class="divide-y divide-white/5 max-h-[400px] overflow-y-auto">
+                    <p class="text-center py-10 text-slate-500 italic text-sm" data-i18n="no_history">Aún no has cerrado ninguna operación.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW: LEARN -->
+        <div id="view-learn" class="hidden fade-in max-w-3xl mx-auto">
+            <h2 class="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6" data-i18n="learn_title">📚 Centro de Aprendizaje</h2>
+            
+            <div class="space-y-4">
+                <div class="glass p-4 sm:p-6 rounded-xl border-l-4 border-blue-500">
+                    <h3 class="text-base sm:text-lg font-bold text-white mb-3" data-i18n="how_works">🎮 ¿Cómo funciona este simulador?</h3>
+                    <ul class="space-y-2 text-sm text-slate-300">
+                        <li data-i18n="learn_1">✅ Empiezas con <strong>$10,000 virtuales</strong> (dinero ficticio)</li>
+                        <li data-i18n="learn_2">✅ Los precios son <strong>REALES</strong> de Binance en tiempo real</li>
+                        <li data-i18n="learn_3">✅ Puedes operar sin riesgo para aprender</li>
+                        <li data-i18n="learn_4">✅ Sube de nivel haciendo operaciones rentables</li>
+                    </ul>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="glass p-4 sm:p-5 rounded-xl">
+                        <h4 class="font-bold text-emerald-400 mb-3" data-i18n="what_is_long">📈 ¿Qué es COMPRAR (Long)?</h4>
+                        <p class="text-sm text-slate-400" data-i18n="long_explanation">Abres una posición apostando a que el precio SUBIRÁ. Si el precio sube, ganas. Si baja, pierdes.</p>
+                    </div>
+                    <div class="glass p-4 sm:p-5 rounded-xl">
+                        <h4 class="font-bold text-red-400 mb-3" data-i18n="what_is_short">📉 ¿Qué es VENDER (Short)?</h4>
+                        <p class="text-sm text-slate-400" data-i18n="short_explanation">Abres una posición apostando a que el precio BAJARÁ. Si el precio baja, ganas. Si sube, pierdes.</p>
+                    </div>
+                </div>
+
+                <div class="glass p-4 sm:p-6 rounded-xl border-l-4 border-yellow-500">
+                    <h3 class="text-base sm:text-lg font-bold text-yellow-400 mb-3" data-i18n="remember">⚠️ Recuerda</h3>
+                    <p class="text-sm text-slate-300" data-i18n="disclaimer">Este es un <strong>JUEGO EDUCATIVO</strong>. El trading real implica riesgos muy altos. Nunca inviertas dinero que no puedas perder.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- TRADE MODAL -->
+    <div id="tradeModal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/80 backdrop-blur-sm p-2 sm:p-4">
+        <div id="tradeModalContent" class="modal-content glass rounded-2xl w-full max-w-md overflow-hidden shadow-2xl border border-white/10 fade-in">
+            <div id="tradeModalHeader" class="p-3 sm:p-4 flex justify-between items-center border-b border-white/10">
+                <h3 id="tradeModalTitle" class="font-bold text-white text-base sm:text-lg">NUEVA OPERACIÓN</h3>
+                <button onclick="app.closeTradeModal()" class="text-slate-400 hover:text-white text-2xl">&times;</button>
+            </div>
+            
+            <div class="p-4 sm:p-6 space-y-4 sm:space-y-5">
+                <div class="flex justify-between items-end">
+                    <div>
+                        <span class="text-[10px] text-slate-400 uppercase" data-i18n="current_price">Precio Actual</span>
+                        <div id="modalPrice" class="text-xl sm:text-2xl font-mono font-bold text-white">$0.00</div>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-[10px] text-slate-400 uppercase" data-i18n="your_balance">Tu Saldo</span>
+                        <div id="modalBalance" class="text-base sm:text-lg font-mono font-bold text-emerald-400">$10,000</div>
+                    </div>
+                </div>
+
+                <div id="shortWarning" class="hidden bg-red-500/10 border border-red-500/30 p-3 rounded-lg text-xs text-red-300" data-i18n="short_warning">
+                    ⚠️ <strong>SHORT:</strong> Estás apostando a que el precio BAJARÁ. Ganarás si el precio cae.
+                </div>
+
+                <div class="bg-slate-800/50 p-3 sm:p-4 rounded-xl">
+                    <div class="flex justify-between text-xs mb-2">
+                        <span class="text-slate-400" data-i18n="amount_to_invest">Cantidad a Invertir</span>
+                        <span id="investAmount" class="text-white font-bold text-base sm:text-lg">$0.00</span>
+                    </div>
+                    <input type="range" id="investSlider" min="0" max="100" value="0" class="w-full" oninput="app.updateTradeCalc()">
+                    <div class="flex gap-2 mt-3">
+                        <button onclick="app.setInvestPercent(10)" class="flex-1 py-2 text-xs bg-slate-700 hover:bg-slate-600 rounded-lg text-white transition">10%</button>
+                        <button onclick="app.setInvestPercent(25)" class="flex-1 py-2 text-xs bg-slate-700 hover:bg-slate-600 rounded-lg text-white transition">25%</button>
+                        <button onclick="app.setInvestPercent(50)" class="flex-1 py-2 text-xs bg-slate-700 hover:bg-slate-600 rounded-lg text-white transition">50%</button>
+                        <button onclick="app.setInvestPercent(100)" class="flex-1 py-2 text-xs bg-blue-600 hover:bg-blue-500 rounded-lg text-white font-bold transition">MAX</button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 sm:gap-4">
+                    <div>
+                        <label class="text-[10px] text-slate-400 uppercase block mb-1" data-i18n="take_profit">Take Profit (%)</label>
+                        <input type="number" id="takeProfit" placeholder="Ej: 5" min="0.1" step="0.1" class="w-full bg-slate-900 border border-emerald-500/30 rounded-lg py-2 px-3 text-sm text-white focus:border-emerald-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-slate-400 uppercase block mb-1" data-i18n="stop_loss">Stop Loss (%)</label>
+                        <input type="number" id="stopLoss" placeholder="Ej: 3" min="0.1" step="0.1" class="w-full bg-slate-900 border border-red-500/30 rounded-lg py-2 px-3 text-sm text-white focus:border-red-500 outline-none">
+                    </div>
+                </div>
+
+                <div class="flex justify-between text-[10px] text-slate-500 border-t border-white/5 pt-3">
+                    <span data-i18n="fee">Comisión (0.1%):</span>
+                    <span id="feeAmount" class="text-slate-300">$0.00</span>
+                </div>
+
+                <button onclick="app.executeTrade()" id="tradeButton" class="w-full py-3 sm:py-4 rounded-xl font-bold text-white shadow-lg transition text-sm uppercase tracking-wide">
+                    Confirmar Operación
+                </button>
+                
+                <div id="tradeError" class="hidden text-center text-red-400 text-xs font-medium shake"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ANALYSIS MODAL -->
+    <div id="analysisModal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/80 backdrop-blur-sm p-2 sm:p-4">
+        <div class="modal-content glass rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl border border-purple-500/30 fade-in">
+            <div class="p-3 sm:p-4 flex justify-between items-center border-b border-purple-500/30 bg-gradient-to-r from-purple-900/50 to-purple-900/20">
+                <h3 class="font-bold text-white text-base sm:text-lg flex items-center gap-2">🤖 <span data-i18n="analysis_title">Análisis Inteligente</span></h3>
+                <button onclick="app.closeAnalysisModal()" class="text-slate-400 hover:text-white text-2xl">&times;</button>
+            </div>
+            
+            <div class="p-4 sm:p-6 space-y-4">
+                <!-- Asset Info -->
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div id="analysisIcon" class="crypto-icon-lg crypto-icon-fallback bg-gradient-to-br from-orange-400 to-orange-600">₿</div>
+                        <div>
+                            <h4 id="analysisAsset" class="text-xl font-bold text-white">BTC</h4>
+                            <p id="analysisPrice" class="text-sm text-slate-400">$0.00</p>
+                        </div>
+                    </div>
+                    <div id="analysisSignal" class="signal-badge signal-hold">ESPERAR</div>
+                </div>
+
+                <!-- Confidence -->
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-slate-400" data-i18n="confidence">Confianza</span>
+                        <span id="analysisConfidence" class="text-purple-400 font-bold">0%</span>
+                    </div>
+                    <div class="confidence-bar">
+                        <div id="analysisConfidenceBar" class="confidence-fill bg-purple-500" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- Analysis Result -->
+                <div class="analysis-panel rounded-xl p-4">
+                    <div id="analysisLoading" class="text-center py-4">
+                        <div class="flex justify-center gap-1 mb-2">
+                            <span class="typing-dot w-2 h-2 bg-purple-400 rounded-full"></span>
+                            <span class="typing-dot w-2 h-2 bg-purple-400 rounded-full"></span>
+                            <span class="typing-dot w-2 h-2 bg-purple-400 rounded-full"></span>
+                        </div>
+                        <p class="text-sm text-purple-300" data-i18n="analyzing">Analizando datos del mercado...</p>
+                    </div>
+                    <div id="analysisResult" class="hidden">
+                        <p id="analysisText" class="text-sm text-slate-300 analysis-result"></p>
+                    </div>
+                </div>
+
+                <!-- Indicators Summary -->
+                <div class="grid grid-cols-3 gap-2 text-center">
+                    <div class="bg-slate-800/50 p-3 rounded-lg">
+                        <p class="text-[10px] text-slate-500 uppercase">RSI</p>
+                        <p id="analysisRSI" class="text-lg font-bold text-white">--</p>
+                    </div>
+                    <div class="bg-slate-800/50 p-3 rounded-lg">
+                        <p class="text-[10px] text-slate-500 uppercase" data-i18n="change_24h">Cambio 24h</p>
+                        <p id="analysisChange" class="text-lg font-bold text-white">--</p>
+                    </div>
+                    <div class="bg-slate-800/50 p-3 rounded-lg">
+                        <p class="text-[10px] text-slate-500 uppercase" data-i18n="volume">Volumen</p>
+                        <p id="analysisVolume" class="text-lg font-bold text-white">--</p>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="app.closeAnalysisModal(); app.openTradeModal('long')" class="btn-long py-3 rounded-xl font-bold text-white text-sm" data-i18n="buy">COMPRAR</button>
+                    <button onclick="app.closeAnalysisModal(); app.openTradeModal('short')" class="btn-short py-3 rounded-xl font-bold text-white text-sm" data-i18n="sell">VENDER</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- WELCOME MODAL -->
+    <div id="welcomeModal" class="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 backdrop-blur-sm p-3 sm:p-4">
+        <div class="glass max-w-lg p-6 sm:p-8 rounded-2xl text-center space-y-4 sm:space-y-6 border border-emerald-500/30 shadow-2xl fade-in">
+            <div class="text-5xl sm:text-6xl">📈</div>
+            <div>
+                <h2 class="text-xl sm:text-2xl font-bold text-white mb-2" data-i18n="welcome_title">¡Bienvenido a TRADE SIMULATOR!</h2>
+                <p class="text-slate-300 text-sm sm:text-base" data-i18n="welcome_subtitle">Plataforma de <strong class="text-emerald-400">SIMULACIÓN EDUCATIVA</strong></p>
+            </div>
+            <div class="text-left bg-slate-800/50 p-4 sm:p-5 rounded-xl space-y-2 sm:space-y-3 text-sm text-slate-300">
+                <p data-i18n="welcome_1">🎮 <strong>Es un JUEGO:</strong> El dinero es 100% ficticio</p>
+                <p data-i18n="welcome_2">📊 <strong>Datos REALES:</strong> Precios en vivo de Binance</p>
+                <p data-i18n="welcome_3">🏆 <strong>Gamificación:</strong> Sube de nivel operando bien</p>
+                <p data-i18n="welcome_4">🔒 <strong>Sin riesgo:</strong> No puedes perder dinero real</p>
+            </div>
+            <button onclick="app.closeWelcome()" class="w-full py-3 sm:py-4 bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-500 hover:to-blue-500 text-white font-bold rounded-xl transition text-base sm:text-lg shadow-lg" data-i18n="welcome_button">
+                ¡ENTENDIDO, A JUGAR! 🚀
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // TRADE SIMULATOR v9.0 - FULL RESPONSIVE + AI ANALYSIS
+        // ============================================
+
+        const TRANSLATIONS = {
+            es: {
+                banner: "SIMULADOR EDUCATIVO • DINERO 100% FICTICIO • APRENDE SIN RIESGO",
+                subtitle: "Simulador Educativo v9.0",
+                connecting: "Conectando...",
+                connected: "Conectado",
+                reconnecting: "Reconectando...",
+                disconnected: "Desconectado",
+                nav_terminal: "📊 Terminal",
+                nav_portfolio: "💼 Cartera",
+                nav_learn: "📚 Aprender",
+                nav_terminal_short: "Terminal",
+                nav_portfolio_short: "Cartera",
+                nav_learn_short: "Aprender",
+                nav_assets: "Activos",
+                nav_positions: "Posiciones",
+                virtual_balance: "💰 Saldo Virtual",
+                search_placeholder: "🔍 Buscar activo...",
+                cat_all: "TODOS",
+                cat_gainers: "📈 TOP",
+                cat_losers: "📉 BAJA",
+                assets_loaded: "Activos cargados:",
+                loading_assets: "Cargando activos...",
+                live: "EN VIVO",
+                ai_analysis: "Análisis Inteligente",
+                analyze_btn: "🔮 ANALIZAR ACTIVO",
+                analyze_desc: "→ Obtén una recomendación basada en datos",
+                bullish: "Alcista (Long)",
+                buy: "COMPRAR",
+                buy_desc: "→ Ganas si el precio SUBE",
+                bearish: "Bajista (Short)",
+                sell: "VENDER",
+                sell_desc: "→ Ganas si el precio BAJA",
+                market_summary: "Resumen del Mercado",
+                market_cap: "Cap. Mercado",
+                gainers_count: "Ganadores",
+                losers_count: "Perdedores",
+                open_positions: "⚡ Posiciones Abiertas",
+                close_all: "Cerrar Todo",
+                no_positions: "Sin posiciones abiertas",
+                stats: "📊 Estadísticas",
+                total_equity: "Patrimonio Total",
+                unrealized_pnl: "PnL No Realizado",
+                win_rate: "Win Rate",
+                total_trades: "Total Operaciones",
+                top_movers: "🔥 Top Movers 24h",
+                loading: "Cargando...",
+                portfolio_title: "💼 Tu Cartera Virtual",
+                available_balance: "Saldo Disponible",
+                total_profits: "Ganancias Totales",
+                total_losses: "Pérdidas Totales",
+                your_level: "Tu Nivel",
+                trade_history: "📜 Historial de Operaciones",
+                clear: "Limpiar",
+                no_history: "Aún no has cerrado ninguna operación.",
+                learn_title: "📚 Centro de Aprendizaje",
+                how_works: "🎮 ¿Cómo funciona este simulador?",
+                learn_1: "✅ Empiezas con <strong>$10,000 virtuales</strong> (dinero ficticio)",
+                learn_2: "✅ Los precios son <strong>REALES</strong> de Binance en tiempo real",
+                learn_3: "✅ Puedes operar sin riesgo para aprender",
+                learn_4: "✅ Sube de nivel haciendo operaciones rentables",
+                what_is_long: "📈 ¿Qué es COMPRAR (Long)?",
+                long_explanation: "Abres una posición apostando a que el precio SUBIRÁ. Si el precio sube, ganas. Si baja, pierdes.",
+                what_is_short: "📉 ¿Qué es VENDER (Short)?",
+                short_explanation: "Abres una posición apostando a que el precio BAJARÁ. Si el precio baja, ganas. Si sube, pierdes.",
+                remember: "⚠️ Recuerda",
+                disclaimer: "Este es un <strong>JUEGO EDUCATIVO</strong>. El trading real implica riesgos muy altos. Nunca inviertas dinero que no puedas perder.",
+                current_price: "Precio Actual",
+                your_balance: "Tu Saldo",
+                short_warning: "⚠️ <strong>SHORT:</strong> Estás apostando a que el precio BAJARÁ. Ganarás si el precio cae.",
+                amount_to_invest: "Cantidad a Invertir",
+                take_profit: "Take Profit (%)",
+                stop_loss: "Stop Loss (%)",
+                fee: "Comisión (0.1%):",
+                confirm_trade: "Confirmar Operación",
+                welcome_title: "¡Bienvenido a TRADE SIMULATOR!",
+                welcome_subtitle: 'Plataforma de <strong class="text-emerald-400">SIMULACIÓN EDUCATIVA</strong>',
+                welcome_1: "🎮 <strong>Es un JUEGO:</strong> El dinero es 100% ficticio",
+                welcome_2: "📊 <strong>Datos REALES:</strong> Precios en vivo de Binance",
+                welcome_3: "🏆 <strong>Gamificación:</strong> Sube de nivel operando bien",
+                welcome_4: "🔒 <strong>Sin riesgo:</strong> No puedes perder dinero real",
+                welcome_button: "¡ENTENDIDO, A JUGAR! 🚀",
+                error_min_amount: "Monto mínimo: $10",
+                error_insufficient: "Saldo insuficiente",
+                error_select_amount: "Selecciona un monto mayor a 0",
+                position_opened: "Posición abierta",
+                position_closed: "Posición cerrada",
+                profit: "Ganancia",
+                loss: "Pérdida",
+                close: "CERRAR",
+                long: "LONG",
+                short: "SHORT",
+                entry: "Entrada",
+                current: "Actual",
+                pnl: "PnL",
+                overbought: "Sobrecompra",
+                oversold: "Sobreventa",
+                neutral: "Neutral",
+                analysis_title: "Análisis Inteligente",
+                confidence: "Confianza",
+                analyzing: "Analizando datos del mercado...",
+                change_24h: "Cambio 24h",
+                volume: "Volumen",
+                signal_buy: "COMPRAR",
+                signal_sell: "VENDER",
+                signal_hold: "ESPERAR",
+                analysis_bullish_strong: "📈 SEÑAL FUERTE DE COMPRA\n\nEl RSI indica sobreventa ({rsi}), lo que sugiere un posible rebote alcista.\nCambio 24h: {change}%\n\n💡 Consejo: Considera una entrada con stop loss del 3-5%.",
+                analysis_bullish: "📈 SEÑAL DE COMPRA\n\nEl mercado muestra momentum positivo.\nRSI: {rsi} (zona neutral-alcista)\nCambio 24h: {change}%\n\n💡 Consejo: Espera confirmación antes de entrar.",
+                analysis_bearish_strong: "📉 SEÑAL FUERTE DE VENTA\n\nEl RSI indica sobrecompra ({rsi}), posible corrección a la baja.\nCambio 24h: {change}%\n\n💡 Consejo: Considera un SHORT o espera mejor precio.",
+                analysis_bearish: "📉 SEÑAL DE VENTA\n\nEl mercado muestra debilidad.\nRSI: {rsi}\nCambio 24h: {change}%\n\n💡 Consejo: Precaución con posiciones largas.",
+                analysis_neutral: "⏸️ SEÑAL NEUTRAL\n\nEl mercado está en equilibrio.\nRSI: {rsi} (zona neutral)\nCambio 24h: {change}%\n\n💡 Consejo: Espera una tendencia clara antes de operar.",
+                analysis_portfolio_warning: "\n\n⚠️ Tu saldo es bajo (${balance}). Opera con precaución.",
+                analysis_has_position: "\n\n📊 Ya tienes una posición abierta en {symbol}. PnL actual: {pnl}"
+            },
+            en: {
+                banner: "EDUCATIONAL SIMULATOR • 100% FAKE MONEY • LEARN RISK-FREE",
+                subtitle: "Educational Simulator v9.0",
+                connecting: "Connecting...",
+                connected: "Connected",
+                reconnecting: "Reconnecting...",
+                disconnected: "Disconnected",
+                nav_terminal: "📊 Terminal",
+                nav_portfolio: "💼 Portfolio",
+                nav_learn: "📚 Learn",
+                nav_terminal_short: "Terminal",
+                nav_portfolio_short: "Portfolio",
+                nav_learn_short: "Learn",
+                nav_assets: "Assets",
+                nav_positions: "Positions",
+                virtual_balance: "💰 Virtual Balance",
+                search_placeholder: "🔍 Search asset...",
+                cat_all: "ALL",
+                cat_gainers: "📈 TOP",
+                cat_losers: "📉 DOWN",
+                assets_loaded: "Assets loaded:",
+                loading_assets: "Loading assets...",
+                live: "LIVE",
+                ai_analysis: "Smart Analysis",
+                analyze_btn: "🔮 ANALYZE ASSET",
+                analyze_desc: "→ Get a data-based recommendation",
+                bullish: "Bullish (Long)",
+                buy: "BUY",
+                buy_desc: "→ Profit if price GOES UP",
+                bearish: "Bearish (Short)",
+                sell: "SELL",
+                sell_desc: "→ Profit if price GOES DOWN",
+                market_summary: "Market Summary",
+                market_cap: "Market Cap",
+                gainers_count: "Gainers",
+                losers_count: "Losers",
+                open_positions: "⚡ Open Positions",
+                close_all: "Close All",
+                no_positions: "No open positions",
+                stats: "📊 Statistics",
+                total_equity: "Total Equity",
+                unrealized_pnl: "Unrealized PnL",
+                win_rate: "Win Rate",
+                total_trades: "Total Trades",
+                top_movers: "🔥 Top Movers 24h",
+                loading: "Loading...",
+                portfolio_title: "💼 Your Virtual Portfolio",
+                available_balance: "Available Balance",
+                total_profits: "Total Profits",
+                total_losses: "Total Losses",
+                your_level: "Your Level",
+                trade_history: "📜 Trade History",
+                clear: "Clear",
+                no_history: "No closed trades yet.",
+                learn_title: "📚 Learning Center",
+                how_works: "🎮 How does this simulator work?",
+                learn_1: "✅ You start with <strong>$10,000 virtual</strong> (fake money)",
+                learn_2: "✅ Prices are <strong>REAL</strong> from Binance in real-time",
+                learn_3: "✅ You can trade risk-free to learn",
+                learn_4: "✅ Level up by making profitable trades",
+                what_is_long: "📈 What is BUY (Long)?",
+                long_explanation: "You open a position betting the price will GO UP. If price rises, you win. If it falls, you lose.",
+                what_is_short: "📉 What is SELL (Short)?",
+                short_explanation: "You open a position betting the price will GO DOWN. If price falls, you win. If it rises, you lose.",
+                remember: "⚠️ Remember",
+                disclaimer: "This is an <strong>EDUCATIONAL GAME</strong>. Real trading involves high risks. Never invest money you can't afford to lose.",
+                current_price: "Current Price",
+                your_balance: "Your Balance",
+                short_warning: "⚠️ <strong>SHORT:</strong> You're betting the price will GO DOWN. You profit if price falls.",
+                amount_to_invest: "Amount to Invest",
+                take_profit: "Take Profit (%)",
+                stop_loss: "Stop Loss (%)",
+                fee: "Fee (0.1%):",
+                confirm_trade: "Confirm Trade",
+                welcome_title: "Welcome to TRADE SIMULATOR!",
+                welcome_subtitle: '<strong class="text-emerald-400">EDUCATIONAL SIMULATION</strong> Platform',
+                welcome_1: "🎮 <strong>It's a GAME:</strong> Money is 100% fictional",
+                welcome_2: "📊 <strong>REAL Data:</strong> Live prices from Binance",
+                welcome_3: "🏆 <strong>Gamification:</strong> Level up by trading well",
+                welcome_4: "🔒 <strong>No risk:</strong> You can't lose real money",
+                welcome_button: "GOT IT, LET'S PLAY! 🚀",
+                error_min_amount: "Minimum amount: $10",
+                error_insufficient: "Insufficient balance",
+                error_select_amount: "Select an amount greater than 0",
+                position_opened: "Position opened",
+                position_closed: "Position closed",
+                profit: "Profit",
+                loss: "Loss",
+                close: "CLOSE",
+                long: "LONG",
+                short: "SHORT",
+                entry: "Entry",
+                current: "Current",
+                pnl: "PnL",
+                overbought: "Overbought",
+                oversold: "Oversold",
+                neutral: "Neutral",
+                analysis_title: "Smart Analysis",
+                confidence: "Confidence",
+                analyzing: "Analyzing market data...",
+                change_24h: "24h Change",
+                volume: "Volume",
+                signal_buy: "BUY",
+                signal_sell: "SELL",
+                signal_hold: "HOLD",
+                analysis_bullish_strong: "📈 STRONG BUY SIGNAL\n\nRSI indicates oversold ({rsi}), suggesting a possible bullish bounce.\n24h Change: {change}%\n\n💡 Tip: Consider entry with 3-5% stop loss.",
+                analysis_bullish: "📈 BUY SIGNAL\n\nMarket shows positive momentum.\nRSI: {rsi} (neutral-bullish zone)\n24h Change: {change}%\n\n💡 Tip: Wait for confirmation before entering.",
+                analysis_bearish_strong: "📉 STRONG SELL SIGNAL\n\nRSI indicates overbought ({rsi}), possible downward correction.\n24h Change: {change}%\n\n💡 Tip: Consider a SHORT or wait for better price.",
+                analysis_bearish: "📉 SELL SIGNAL\n\nMarket shows weakness.\nRSI: {rsi}\n24h Change: {change}%\n\n💡 Tip: Caution with long positions.",
+                analysis_neutral: "⏸️ NEUTRAL SIGNAL\n\nMarket is in balance.\nRSI: {rsi} (neutral zone)\n24h Change: {change}%\n\n💡 Tip: Wait for a clear trend before trading.",
+                analysis_portfolio_warning: "\n\n⚠️ Your balance is low (${balance}). Trade with caution.",
+                analysis_has_position: "\n\n📊 You already have an open position in {symbol}. Current PnL: {pnl}"
+            },
+            pt: {
+                banner: "SIMULADOR EDUCATIVO • DINHEIRO 100% FICTÍCIO • APRENDA SEM RISCO",
+                subtitle: "Simulador Educativo v9.0",
+                connecting: "Conectando...",
+                connected: "Conectado",
+                reconnecting: "Reconectando...",
+                disconnected: "Desconectado",
+                nav_terminal: "📊 Terminal",
+                nav_portfolio: "💼 Carteira",
+                nav_learn: "📚 Aprender",
+                nav_terminal_short: "Terminal",
+                nav_portfolio_short: "Carteira",
+                nav_learn_short: "Aprender",
+                nav_assets: "Ativos",
+                nav_positions: "Posições",
+                virtual_balance: "💰 Saldo Virtual",
+                search_placeholder: "🔍 Buscar ativo...",
+                cat_all: "TODOS",
+                cat_gainers: "📈 TOP",
+                cat_losers: "📉 BAIXA",
+                assets_loaded: "Ativos carregados:",
+                loading_assets: "Carregando ativos...",
+                live: "AO VIVO",
+                ai_analysis: "Análise Inteligente",
+                analyze_btn: "🔮 ANALISAR ATIVO",
+                analyze_desc: "→ Obtenha uma recomendação baseada em dados",
+                bullish: "Altista (Long)",
+                buy: "COMPRAR",
+                buy_desc: "→ Ganha se o preço SUBIR",
+                bearish: "Baixista (Short)",
+                sell: "VENDER",
+                sell_desc: "→ Ganha se o preço CAIR",
+                welcome_title: "Bem-vindo ao TRADE SIMULATOR!",
+                welcome_button: "ENTENDI, VAMOS JOGAR! 🚀",
+                overbought: "Sobrecompra",
+                oversold: "Sobrevenda",
+                neutral: "Neutro",
+                signal_buy: "COMPRAR",
+                signal_sell: "VENDER",
+                signal_hold: "AGUARDAR"
+            },
+            de: {
+                banner: "BILDUNGSSIMULATOR • 100% FIKTIVES GELD • RISIKOFREI LERNEN",
+                subtitle: "Bildungssimulator v9.0",
+                connecting: "Verbinden...",
+                connected: "Verbunden",
+                reconnecting: "Neuverbindung...",
+                disconnected: "Getrennt",
+                nav_terminal: "📊 Terminal",
+                nav_portfolio: "💼 Portfolio",
+                nav_learn: "📚 Lernen",
+                nav_terminal_short: "Terminal",
+                nav_portfolio_short: "Portfolio",
+                nav_learn_short: "Lernen",
+                nav_assets: "Assets",
+                nav_positions: "Positionen",
+                virtual_balance: "💰 Virtuelles Guthaben",
+                search_placeholder: "🔍 Asset suchen...",
+                cat_all: "ALLE",
+                cat_gainers: "📈 TOP",
+                cat_losers: "📉 RUNTER",
+                ai_analysis: "Intelligente Analyse",
+                analyze_btn: "🔮 ASSET ANALYSIEREN",
+                analyze_desc: "→ Erhalte eine datenbasierte Empfehlung",
+                buy: "KAUFEN",
+                sell: "VERKAUFEN",
+                welcome_title: "Willkommen bei TRADE SIMULATOR!",
+                welcome_button: "VERSTANDEN, LOS GEHT'S! 🚀",
+                overbought: "Überkauft",
+                oversold: "Überverkauft",
+                neutral: "Neutral",
+                signal_buy: "KAUFEN",
+                signal_sell: "VERKAUFEN",
+                signal_hold: "ABWARTEN"
+            },
+            it: {
+                banner: "SIMULATORE EDUCATIVO • DENARO 100% FITTIZIO • IMPARA SENZA RISCHI",
+                subtitle: "Simulatore Educativo v9.0",
+                connecting: "Connessione...",
+                connected: "Connesso",
+                reconnecting: "Riconnessione...",
+                disconnected: "Disconnesso",
+                nav_terminal: "📊 Terminale",
+                nav_portfolio: "💼 Portafoglio",
+                nav_learn: "📚 Impara",
+                nav_terminal_short: "Terminale",
+                nav_portfolio_short: "Portafoglio",
+                nav_learn_short: "Impara",
+                nav_assets: "Asset",
+                nav_positions: "Posizioni",
+                virtual_balance: "💰 Saldo Virtuale",
+                search_placeholder: "🔍 Cerca asset...",
+                cat_all: "TUTTI",
+                cat_gainers: "📈 TOP",
+                cat_losers: "📉 GIÙ",
+                ai_analysis: "Analisi Intelligente",
+                analyze_btn: "🔮 ANALIZZA ASSET",
+                analyze_desc: "→ Ottieni una raccomandazione basata sui dati",
+                buy: "COMPRA",
+                sell: "VENDI",
+                welcome_title: "Benvenuto in TRADE SIMULATOR!",
+                welcome_button: "CAPITO, GIOCHIAMO! 🚀",
+                overbought: "Ipercomprato",
+                oversold: "Ipervenduto",
+                neutral: "Neutrale",
+                signal_buy: "COMPRA",
+                signal_sell: "VENDI",
+                signal_hold: "ATTENDI"
+            }
+        };
+
+        // Crypto Icons
+        const CRYPTO_ICONS = {
+            BTC: 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png',
+            ETH: 'https://assets.coingecko.com/coins/images/279/small/ethereum.png',
+            BNB: 'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png',
+            SOL: 'https://assets.coingecko.com/coins/images/4128/small/solana.png',
+            XRP: 'https://assets.coingecko.com/coins/images/44/small/xrp-symbol-white-128.png',
+            ADA: 'https://assets.coingecko.com/coins/images/975/small/cardano.png',
+            DOGE: 'https://assets.coingecko.com/coins/images/5/small/dogecoin.png',
+            DOT: 'https://assets.coingecko.com/coins/images/12171/small/polkadot.png',
+            MATIC: 'https://assets.coingecko.com/coins/images/4713/small/matic-token-icon.png',
+            SHIB: 'https://assets.coingecko.com/coins/images/11939/small/shiba.png',
+            LTC: 'https://assets.coingecko.com/coins/images/2/small/litecoin.png',
+            AVAX: 'https://assets.coingecko.com/coins/images/12559/small/Avalanche_Circle_RedWhite_Trans.png',
+            LINK: 'https://assets.coingecko.com/coins/images/877/small/chainlink-new-logo.png',
+            UNI: 'https://assets.coingecko.com/coins/images/12504/small/uniswap-uni.png',
+            ATOM: 'https://assets.coingecko.com/coins/images/1481/small/cosmos_hub.png',
+            PEPE: 'https://assets.coingecko.com/coins/images/29850/small/pepe-token.jpeg',
+            ARB: 'https://assets.coingecko.com/coins/images/16547/small/photo_2023-03-29_21.47.00.jpeg',
+            OP: 'https://assets.coingecko.com/coins/images/25244/small/Optimism.png',
+            SUI: 'https://assets.coingecko.com/coins/images/26375/small/sui_asset.jpeg',
+            APT: 'https://assets.coingecko.com/coins/images/26455/small/aptos_round.png',
+            NEAR: 'https://assets.coingecko.com/coins/images/10365/small/near.jpg',
+            FTM: 'https://assets.coingecko.com/coins/images/4001/small/Fantom_round.png',
+            INJ: 'https://assets.coingecko.com/coins/images/12882/small/Secondary_Symbol.png',
+            BONK: 'https://assets.coingecko.com/coins/images/28600/small/bonk.jpg',
+            WIF: 'https://assets.coingecko.com/coins/images/33566/small/dogwifhat.jpg',
+            FLOKI: 'https://assets.coingecko.com/coins/images/16746/small/PNG_image.png',
+            TON: 'https://assets.coingecko.com/coins/images/17980/small/ton_symbol.png'
+        };
+
+        const CRYPTO_COLORS = {
+            BTC: ['#f7931a', '#e88a00'],
+            ETH: ['#627eea', '#3c3c3d'],
+            BNB: ['#f3ba2f', '#d4a017'],
+            SOL: ['#9945ff', '#14f195'],
+            XRP: ['#23292f', '#00aae4'],
+            ADA: ['#0033ad', '#0d1e30'],
+            DOGE: ['#c2a633', '#ba9f33'],
+            default: ['#374151', '#1f2937']
+        };
+
+        // ============================================
+        // MAIN APPLICATION CLASS
+        // ============================================
+        class TradingApp {
+            constructor() {
+                this.language = localStorage.getItem('tradeSim_lang') || 'es';
+                this.wallet = parseFloat(localStorage.getItem('tradeSim_wallet')) || 10000;
+                this.positions = JSON.parse(localStorage.getItem('tradeSim_positions') || '[]');
+                this.history = JSON.parse(localStorage.getItem('tradeSim_history') || '[]');
+                this.xp = parseInt(localStorage.getItem('tradeSim_xp')) || 0;
+                this.level = parseInt(localStorage.getItem('tradeSim_level')) || 1;
+                
+                this.assets = [];
+                this.prices = {};
+                this.ticker24h = {};
+                this.priceHistory = [];
+                this.currentAsset = null;
+                this.currentRSI = null;
+                this.tradeType = 'long';
+                this.category = 'all';
+                this.chart = null;
+                
+                this.isConnected = false;
+                this.retryCount = 0;
+                this.maxRetries = 5;
+                this.retryDelay = 2000;
+                
+                this.init();
+            }
+
+            async init() {
+                try {
+                    document.getElementById('langSelector').value = this.language;
+                    this.applyLanguage();
+                    this.initChart();
+                    await this.loadAssets();
+                    this.startPriceUpdates();
+                    this.updateUI();
+                    this.setupEventListeners();
+                } catch (error) {
+                    console.error('Init error:', error);
+                    this.showNotification('Error initializing app', 'error');
+                }
+            }
+
+            setupEventListeners() {
+                document.getElementById('searchAsset').addEventListener('input', (e) => {
+                    this.filterAssets(e.target.value);
+                });
+            }
+
+            // ============================================
+            // MOBILE PANELS
+            // ============================================
+            toggleMobilePanel(panel) {
+                const assetSidebar = document.getElementById('assetSidebar');
+                const positionsSidebar = document.getElementById('positionsSidebar');
+                
+                if (panel === 'assets') {
+                    assetSidebar.classList.toggle('show-mobile');
+                    positionsSidebar.classList.remove('show-mobile');
+                } else if (panel === 'positions') {
+                    positionsSidebar.classList.toggle('show-mobile');
+                    assetSidebar.classList.remove('show-mobile');
+                }
+            }
+
+            // ============================================
+            // CRYPTO ICONS
+            // ============================================
+            getCryptoIcon(symbol) {
+                return CRYPTO_ICONS[symbol] || null;
+            }
+
+            getCryptoColors(symbol) {
+                return CRYPTO_COLORS[symbol] || CRYPTO_COLORS.default;
+            }
+
+            createIconElement(symbol, size = 'small') {
+                const iconUrl = this.getCryptoIcon(symbol);
+                const colors = this.getCryptoColors(symbol);
+                const sizeClass = size === 'large' ? 'crypto-icon-lg' : 'crypto-icon';
+                
+                if (iconUrl) {
+                    return `<img src="${iconUrl}" alt="${symbol}" class="${sizeClass}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                            <div class="${sizeClass} crypto-icon-fallback" style="display:none; background: linear-gradient(135deg, ${colors[0]}, ${colors[1]});">${symbol.slice(0, 2)}</div>`;
+                }
+                return `<div class="${sizeClass} crypto-icon-fallback" style="background: linear-gradient(135deg, ${colors[0]}, ${colors[1]});">${symbol.slice(0, 2)}</div>`;
+            }
+
+            // ============================================
+            // LANGUAGE SYSTEM
+            // ============================================
+            t(key) {
+                return TRANSLATIONS[this.language]?.[key] || TRANSLATIONS['es'][key] || key;
+            }
+
+            changeLanguage(lang) {
+                this.language = lang;
+                localStorage.setItem('tradeSim_lang', lang);
+                this.applyLanguage();
+            }
+
+            applyLanguage() {
+                document.querySelectorAll('[data-i18n]').forEach(el => {
+                    const key = el.getAttribute('data-i18n');
+                    const translation = TRANSLATIONS[this.language]?.[key] || TRANSLATIONS['es']?.[key];
+                    if (translation) el.innerHTML = translation;
+                });
+                document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                    const key = el.getAttribute('data-i18n-placeholder');
+                    const translation = TRANSLATIONS[this.language]?.[key] || TRANSLATIONS['es']?.[key];
+                    if (translation) el.placeholder = translation;
+                });
+            }
+
+            // ============================================
+            // CONNECTION STATUS
+            // ============================================
+            updateConnectionStatus(status) {
+                const dot = document.getElementById('connectionDot');
+                const text = document.getElementById('connectionText');
+                
+                if (!dot || !text) return;
+                
+                dot.className = 'connection-dot';
+                
+                switch(status) {
+                    case 'connected':
+                        dot.classList.add('connected');
+                        text.textContent = this.t('connected');
+                        this.isConnected = true;
+                        this.retryCount = 0;
+                        break;
+                    case 'connecting':
+                        dot.classList.add('connecting');
+                        text.textContent = this.t('connecting');
+                        break;
+                    case 'reconnecting':
+                        dot.classList.add('connecting');
+                        text.textContent = `${this.t('reconnecting')} (${this.retryCount}/${this.maxRetries})`;
+                        break;
+                    case 'disconnected':
+                        dot.classList.add('disconnected');
+                        text.textContent = this.t('disconnected');
+                        this.isConnected = false;
+                        break;
+                }
+            }
+
+            // ============================================
+            // DATA FETCHING
+            // ============================================
+            async fetchWithRetry(url, options = {}) {
+                for (let i = 0; i <= this.maxRetries; i++) {
+                    try {
+                        this.retryCount = i;
+                        if (i > 0) this.updateConnectionStatus('reconnecting');
+                        
+                        const response = await fetch(url, {
+                            ...options,
+                            signal: AbortSignal.timeout(10000)
+                        });
+                        
+                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                        
+                        this.updateConnectionStatus('connected');
+                        return await response.json();
+                    } catch (error) {
+                        console.warn(`Fetch attempt ${i + 1} failed:`, error.message);
+                        
+                        if (i === this.maxRetries) {
+                            this.updateConnectionStatus('disconnected');
+                            throw error;
+                        }
+                        
+                        await new Promise(r => setTimeout(r, this.retryDelay * (i + 1)));
+                    }
+                }
+            }
+
+            async loadAssets() {
+                this.updateConnectionStatus('connecting');
+                
+                try {
+                    const data = await this.fetchWithRetry('https://api.binance.com/api/v3/ticker/24hr');
+                    
+                    this.assets = data
+                        .filter(t => t.symbol.endsWith('USDT') && parseFloat(t.quoteVolume) > 100000)
+                        .map(t => {
+                            const symbol = t.symbol.replace('USDT', '');
+                            this.ticker24h[symbol] = t;
+                            this.prices[symbol] = parseFloat(t.lastPrice);
+                            return {
+                                symbol,
+                                name: symbol,
+                                price: parseFloat(t.lastPrice),
+                                change: parseFloat(t.priceChangePercent),
+                                volume: parseFloat(t.quoteVolume),
+                                high: parseFloat(t.highPrice),
+                                low: parseFloat(t.lowPrice)
+                            };
+                        })
+                        .sort((a, b) => b.volume - a.volume)
+                        .slice(0, 300);
+                    
+                    this.renderAssets();
+                    document.getElementById('assetCount').textContent = this.assets.length;
+                    
+                    const gainers = this.assets.filter(a => a.change > 0).length;
+                    const losers = this.assets.filter(a => a.change < 0).length;
+                    document.getElementById('gainersCount').textContent = gainers;
+                    document.getElementById('losersCount').textContent = losers;
+                    
+                    const totalVol = this.assets.reduce((s, a) => s + a.volume, 0);
+                    document.getElementById('marketCap').textContent = this.formatVolume(totalVol);
+                    
+                    if (this.assets.length > 0) {
+                        this.selectAsset(this.assets[0].symbol);
+                    }
+                    
+                    this.updateTopMovers();
+                } catch (error) {
+                    console.error('Failed to load assets:', error);
+                    document.getElementById('assetsList').innerHTML = `
+                        <div class="text-center py-10 text-red-400">
+                            <span class="text-3xl">⚠️</span>
+                            <p class="text-sm mt-2">Error loading data. Click to retry.</p>
+                            <button onclick="app.loadAssets()" class="mt-3 px-4 py-2 bg-blue-600 rounded-lg text-white text-sm">Retry</button>
+                        </div>
+                    `;
+                }
+            }
+
+            async startPriceUpdates() {
+                setInterval(async () => {
+                    try {
+                        const data = await this.fetchWithRetry('https://api.binance.com/api/v3/ticker/price');
+                        
+                        data.forEach(t => {
+                            if (t.symbol.endsWith('USDT')) {
+                                const symbol = t.symbol.replace('USDT', '');
+                                this.prices[symbol] = parseFloat(t.price);
+                            }
+                        });
+                        
+                        this.updatePriceDisplays();
+                        this.checkPositions();
+                    } catch (error) {
+                        console.warn('Price update failed:', error.message);
+                    }
+                }, 5000);
+            }
+
+            // ============================================
+            // ASSET MANAGEMENT
+            // ============================================
+            renderAssets() {
+                const container = document.getElementById('assetsList');
+                let filtered = [...this.assets];
+                
+                if (this.category === 'gainers') {
+                    filtered = filtered.filter(a => a.change > 0).sort((a, b) => b.change - a.change).slice(0, 50);
+                } else if (this.category === 'losers') {
+                    filtered = filtered.filter(a => a.change < 0).sort((a, b) => a.change - b.change).slice(0, 50);
+                }
+                
+                container.innerHTML = filtered.map(asset => {
+                    const isUp = asset.change >= 0;
+                    const borderClass = isUp ? 'gainer' : 'loser';
+                    const selected = this.currentAsset === asset.symbol ? 'selected' : '';
+                    
+                    return `
+                        <div onclick="app.selectAsset('${asset.symbol}'); app.toggleMobilePanel('assets')" 
+                             class="asset-row ${borderClass} ${selected} p-3 rounded-lg cursor-pointer border border-transparent transition-all" 
+                             data-symbol="${asset.symbol}">
+                            <div class="flex justify-between items-center">
+                                <div class="flex items-center gap-2">
+                                    ${this.createIconElement(asset.symbol, 'small')}
+                                    <div>
+                                        <div class="font-bold text-sm text-white">${asset.symbol}</div>
+                                        <div class="text-[10px] text-slate-500">USDT</div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-mono text-sm text-white price-display" data-symbol="${asset.symbol}">$${this.formatPrice(asset.price)}</div>
+                                    <div class="text-[10px] font-mono ${isUp ? 'text-emerald-400' : 'text-red-400'}">
+                                        ${isUp ? '+' : ''}${asset.change.toFixed(2)}%
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            filterAssets(query) {
+                const q = query.toLowerCase();
+                document.querySelectorAll('.asset-row').forEach(row => {
+                    const symbol = row.dataset.symbol?.toLowerCase() || '';
+                    row.style.display = symbol.includes(q) ? 'block' : 'none';
+                });
+            }
+
+            filterCategory(cat, btnElement) {
+                this.category = cat;
+                
+                document.querySelectorAll('#categoryButtons .category-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                if (btnElement) btnElement.classList.add('active');
+                
+                this.renderAssets();
+            }
+
+            async selectAsset(symbol) {
+                this.currentAsset = symbol;
+                
+                document.querySelectorAll('.asset-row').forEach(el => {
+                    el.classList.toggle('selected', el.dataset.symbol === symbol);
+                });
+                
+                const price = this.prices[symbol] || 0;
+                const ticker = this.ticker24h[symbol];
+                const change = ticker ? parseFloat(ticker.priceChangePercent) : 0;
+                const isUp = change >= 0;
+                
+                document.getElementById('chartTitle').textContent = symbol;
+                document.getElementById('assetSymbol').textContent = `${symbol}USDT`;
+                document.getElementById('currentPrice').textContent = '$' + this.formatPrice(price);
+                
+                const changeEl = document.getElementById('priceChange');
+                changeEl.textContent = `${isUp ? '+' : ''}${change.toFixed(2)}%`;
+                changeEl.className = `text-sm font-mono ${isUp ? 'text-emerald-400' : 'text-red-400'}`;
+                
+                const iconUrl = this.getCryptoIcon(symbol);
+                const colors = this.getCryptoColors(symbol);
+                const iconImg = document.getElementById('assetIconImg');
+                const iconFallback = document.getElementById('assetIconFallback');
+                
+                if (iconUrl) {
+                    iconImg.src = iconUrl;
+                    iconImg.alt = symbol;
+                    iconImg.classList.remove('hidden');
+                    iconFallback.classList.add('hidden');
+                } else {
+                    iconImg.classList.add('hidden');
+                    iconFallback.classList.remove('hidden');
+                    iconFallback.textContent = symbol.slice(0, 1);
+                    iconFallback.style.background = `linear-gradient(135deg, ${colors[0]}, ${colors[1]})`;
+                }
+                
+                if (ticker) {
+                    document.getElementById('volumeValue').textContent = this.formatVolume(ticker.quoteVolume || 0);
+                    document.getElementById('highValue').textContent = '$' + this.formatPrice(ticker.highPrice || 0);
+                    document.getElementById('lowValue').textContent = '$' + this.formatPrice(ticker.lowPrice || 0);
+                } else {
+                    document.getElementById('volumeValue').textContent = '--';
+                    document.getElementById('highValue').textContent = '--';
+                    document.getElementById('lowValue').textContent = '--';
+                }
+                
+                await this.loadChartData(symbol);
+            }
+
+            updatePriceDisplays() {
+                document.querySelectorAll('.price-display').forEach(el => {
+                    const symbol = el.dataset.symbol;
+                    const price = this.prices[symbol];
+                    if (price !== undefined) {
+                        el.textContent = '$' + this.formatPrice(price);
+                    }
+                });
+                
+                if (this.currentAsset && this.prices[this.currentAsset]) {
+                    document.getElementById('currentPrice').textContent = '$' + this.formatPrice(this.prices[this.currentAsset]);
+                }
+            }
+
+            updateTopMovers() {
+                const gainers = [...this.assets].sort((a, b) => b.change - a.change).slice(0, 3);
+                const losers = [...this.assets].sort((a, b) => a.change - b.change).slice(0, 2);
+                
+                const container = document.getElementById('topMovers');
+                container.innerHTML = [...gainers, ...losers].map(a => `
+                    <div onclick="app.selectAsset('${a.symbol}')" class="flex justify-between items-center p-2 rounded-lg hover:bg-white/5 cursor-pointer">
+                        <div class="flex items-center gap-2">
+                            ${this.createIconElement(a.symbol, 'small')}
+                            <span class="text-xs font-bold text-white">${a.symbol}</span>
+                        </div>
+                        <span class="text-xs font-mono ${a.change >= 0 ? 'text-emerald-400' : 'text-red-400'}">${a.change >= 0 ? '+' : ''}${a.change.toFixed(2)}%</span>
+                    </div>
+                `).join('');
+            }
+
+            // ============================================
+            // CHART
+            // ============================================
+            initChart() {
+                const ctx = document.getElementById('priceChart').getContext('2d');
+                const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+                gradient.addColorStop(0, 'rgba(16, 185, 129, 0.3)');
+                gradient.addColorStop(1, 'rgba(16, 185, 129, 0)');
+                
+                this.chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            data: [],
+                            borderColor: '#10b981',
+                            backgroundColor: gradient,
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            tension: 0.4,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { display: false },
+                            y: { 
+                                position: 'right',
+                                grid: { color: 'rgba(255,255,255,0.05)' },
+                                ticks: { 
+                                    color: '#64748b', 
+                                    callback: v => '$' + v.toLocaleString(),
+                                    maxTicksLimit: 5
+                                }
+                            }
+                        },
+                        interaction: { intersect: false, mode: 'index' }
+                    }
+                });
+            }
+
+            async loadChartData(symbol) {
+                try {
+                    const data = await this.fetchWithRetry(`https://api.binance.com/api/v3/klines?symbol=${symbol}USDT&interval=1h&limit=48`);
+                    
+                    this.priceHistory = data.map(k => parseFloat(k[4]));
+                    const labels = data.map(k => new Date(k[0]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+                    
+                    this.chart.data.labels = labels;
+                    this.chart.data.datasets[0].data = this.priceHistory;
+                    this.chart.update('none');
+                    
+                    this.calculateRSI();
+                } catch (error) {
+                    console.error('Chart data error:', error);
+                }
+            }
+
+            calculateRSI() {
+                const prices = this.priceHistory;
+                if (prices.length < 15) {
+                    this.currentRSI = null;
+                    document.getElementById('rsiValue').textContent = '--';
+                    document.getElementById('rsiLabel').textContent = '--';
+                    return null;
+                }
+                
+                let gains = 0, losses = 0;
+                for (let i = prices.length - 14; i < prices.length; i++) {
+                    const diff = prices[i] - prices[i - 1];
+                    if (diff >= 0) gains += diff;
+                    else losses -= diff;
+                }
+                
+                const avgGain = gains / 14;
+                const avgLoss = losses / 14;
+                const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+                const rsi = 100 - (100 / (1 + rs));
+                
+                this.currentRSI = rsi;
+                
+                const rsiEl = document.getElementById('rsiValue');
+                const rsiLabel = document.getElementById('rsiLabel');
+                
+                rsiEl.textContent = rsi.toFixed(0);
+                
+                if (rsi > 70) {
+                    rsiEl.className = 'text-base sm:text-lg font-bold text-red-400';
+                    rsiLabel.textContent = this.t('overbought');
+                    rsiLabel.className = 'text-[8px] sm:text-[9px] text-red-400';
+                } else if (rsi < 30) {
+                    rsiEl.className = 'text-base sm:text-lg font-bold text-emerald-400';
+                    rsiLabel.textContent = this.t('oversold');
+                    rsiLabel.className = 'text-[8px] sm:text-[9px] text-emerald-400';
+                } else {
+                    rsiEl.className = 'text-base sm:text-lg font-bold text-white';
+                    rsiLabel.textContent = this.t('neutral');
+                    rsiLabel.className = 'text-[8px] sm:text-[9px] text-slate-500';
+                }
+                
+                return rsi;
+            }
+
+            // ============================================
+            // AI ANALYSIS (LOCAL ENGINE)
+            // ============================================
+            analyzeAsset() {
+                if (!this.currentAsset) {
+                    this.showNotification('Select an asset first', 'error');
+                    return;
+                }
+
+                const modal = document.getElementById('analysisModal');
+                const loading = document.getElementById('analysisLoading');
+                const result = document.getElementById('analysisResult');
+                
+                // Reset
+                loading.classList.remove('hidden');
+                result.classList.add('hidden');
+                
+                // Update asset info
+                const price = this.prices[this.currentAsset] || 0;
+                const ticker = this.ticker24h[this.currentAsset];
+                const change = ticker ? parseFloat(ticker.priceChangePercent) : 0;
+                const volume = ticker ? this.formatVolume(ticker.quoteVolume) : '--';
+                
+                document.getElementById('analysisAsset').textContent = this.currentAsset;
+                document.getElementById('analysisPrice').textContent = '$' + this.formatPrice(price);
+                document.getElementById('analysisRSI').textContent = this.currentRSI ? this.currentRSI.toFixed(0) : '--';
+                document.getElementById('analysisChange').textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`;
+                document.getElementById('analysisChange').className = `text-lg font-bold ${change >= 0 ? 'text-emerald-400' : 'text-red-400'}`;
+                document.getElementById('analysisVolume').textContent = volume;
+                
+                // Update icon
+                const iconUrl = this.getCryptoIcon(this.currentAsset);
+                const colors = this.getCryptoColors(this.currentAsset);
+                const iconEl = document.getElementById('analysisIcon');
+                
+                if (iconUrl) {
+                    iconEl.innerHTML = `<img src="${iconUrl}" class="w-full h-full rounded-full">`;
+                } else {
+                    iconEl.innerHTML = this.currentAsset.slice(0, 2);
+                    iconEl.style.background = `linear-gradient(135deg, ${colors[0]}, ${colors[1]})`;
+                }
+                
+                modal.style.display = 'flex';
+                
+                // Simulate analysis delay
+                setTimeout(() => {
+                    this.generateAnalysis(price, change, volume);
+                }, 1500);
+            }
+
+            generateAnalysis(price, change, volume) {
+                const rsi = this.currentRSI || 50;
+                let signal, signalClass, confidence, analysisKey;
+                
+                // Determine signal based on RSI and change
+                if (rsi < 30 && change < 0) {
+                    signal = this.t('signal_buy');
+                    signalClass = 'signal-buy';
+                    confidence = 75 + Math.random() * 15;
+                    analysisKey = 'analysis_bullish_strong';
+                } else if (rsi < 40 && change > -2) {
+                    signal = this.t('signal_buy');
+                    signalClass = 'signal-buy';
+                    confidence = 55 + Math.random() * 15;
+                    analysisKey = 'analysis_bullish';
+                } else if (rsi > 70 && change > 0) {
+                    signal = this.t('signal_sell');
+                    signalClass = 'signal-sell';
+                    confidence = 75 + Math.random() * 15;
+                    analysisKey = 'analysis_bearish_strong';
+                } else if (rsi > 60 && change < 2) {
+                    signal = this.t('signal_sell');
+                    signalClass = 'signal-sell';
+                    confidence = 55 + Math.random() * 15;
+                    analysisKey = 'analysis_bearish';
+                } else {
+                    signal = this.t('signal_hold');
+                    signalClass = 'signal-hold';
+                    confidence = 40 + Math.random() * 20;
+                    analysisKey = 'analysis_neutral';
+                }
+                
+                // Update signal badge
+                const signalEl = document.getElementById('analysisSignal');
+                signalEl.textContent = signal;
+                signalEl.className = `signal-badge ${signalClass}`;
+                
+                // Update confidence
+                document.getElementById('analysisConfidence').textContent = confidence.toFixed(0) + '%';
+                document.getElementById('analysisConfidenceBar').style.width = confidence + '%';
+                document.getElementById('analysisConfidenceBar').className = `confidence-fill ${signalClass === 'signal-buy' ? 'bg-emerald-500' : signalClass === 'signal-sell' ? 'bg-red-500' : 'bg-yellow-500'}`;
+                
+                // Generate analysis text
+                let analysisText = this.t(analysisKey)
+                    .replace('{rsi}', rsi.toFixed(0))
+                    .replace('{change}', change.toFixed(2));
+                
+                // Add portfolio context
+                if (this.wallet < 500) {
+                    analysisText += this.t('analysis_portfolio_warning').replace('{balance}', this.wallet.toFixed(2));
+                }
+                
+                // Check if user has position in this asset
+                const existingPosition = this.positions.find(p => p.symbol === this.currentAsset);
+                if (existingPosition) {
+                    const currentPrice = this.prices[existingPosition.symbol] || existingPosition.entry;
+                    let pnlPercent = existingPosition.type === 'long'
+                        ? ((currentPrice - existingPosition.entry) / existingPosition.entry) * 100
+                        : ((existingPosition.entry - currentPrice) / existingPosition.entry) * 100;
+                    const pnl = (pnlPercent / 100) * existingPosition.amount;
+                    
+                    analysisText += this.t('analysis_has_position')
+                        .replace('{symbol}', this.currentAsset)
+                        .replace('{pnl}', `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`);
+                }
+                
+                document.getElementById('analysisText').textContent = analysisText;
+                
+                // Show result
+                document.getElementById('analysisLoading').classList.add('hidden');
+                document.getElementById('analysisResult').classList.remove('hidden');
+            }
+
+            closeAnalysisModal() {
+                document.getElementById('analysisModal').style.display = 'none';
+            }
+
+            // ============================================
+            // TRADING
+            // ============================================
+            openTradeModal(type) {
+                if (!this.currentAsset) {
+                    this.showNotification('Select an asset first', 'error');
+                    return;
+                }
+                
+                this.tradeType = type;
+                
+                const modal = document.getElementById('tradeModal');
+                const header = document.getElementById('tradeModalHeader');
+                const title = document.getElementById('tradeModalTitle');
+                const button = document.getElementById('tradeButton');
+                const warning = document.getElementById('shortWarning');
+                const error = document.getElementById('tradeError');
+                
+                error.classList.add('hidden');
+                document.getElementById('investSlider').value = 0;
+                document.getElementById('takeProfit').value = '';
+                document.getElementById('stopLoss').value = '';
+                
+                const price = this.prices[this.currentAsset] || 0;
+                document.getElementById('modalPrice').textContent = '$' + this.formatPrice(price);
+                document.getElementById('modalBalance').textContent = '$' + this.wallet.toFixed(2);
+                
+                if (type === 'long') {
+                    header.className = 'p-3 sm:p-4 flex justify-between items-center border-b border-emerald-500/30 bg-gradient-to-r from-emerald-900/50 to-emerald-900/20';
+                    title.textContent = `${this.t('buy')} ${this.currentAsset} (LONG)`;
+                    button.className = 'w-full py-3 sm:py-4 rounded-xl font-bold text-white shadow-lg transition text-sm uppercase tracking-wide bg-emerald-600 hover:bg-emerald-500';
+                    button.textContent = this.t('confirm_trade') || 'Confirmar Operación';
+                    warning.classList.add('hidden');
+                } else {
+                    header.className = 'p-3 sm:p-4 flex justify-between items-center border-b border-red-500/30 bg-gradient-to-r from-red-900/50 to-red-900/20';
+                    title.textContent = `${this.t('sell')} ${this.currentAsset} (SHORT)`;
+                    button.className = 'w-full py-3 sm:py-4 rounded-xl font-bold text-white shadow-lg transition text-sm uppercase tracking-wide bg-red-600 hover:bg-red-500';
+                    button.textContent = this.t('confirm_trade') || 'Confirmar Operación';
+                    warning.classList.remove('hidden');
+                }
+                
+                this.updateTradeCalc();
+                modal.style.display = 'flex';
+            }
+
+            closeTradeModal() {
+                document.getElementById('tradeModal').style.display = 'none';
+            }
+
+            updateTradeCalc() {
+                const percent = parseInt(document.getElementById('investSlider').value) || 0;
+                const amount = (this.wallet * percent) / 100;
+                document.getElementById('investAmount').textContent = '$' + amount.toFixed(2);
+                document.getElementById('feeAmount').textContent = '$' + (amount * 0.001).toFixed(2);
+            }
+
+            setInvestPercent(percent) {
+                document.getElementById('investSlider').value = percent;
+                this.updateTradeCalc();
+            }
+
+            executeTrade() {
+                const percent = parseInt(document.getElementById('investSlider').value) || 0;
+                const amount = (this.wallet * percent) / 100;
+                const error = document.getElementById('tradeError');
+                const content = document.getElementById('tradeModalContent');
+                
+                if (percent === 0) {
+                    error.textContent = this.t('error_select_amount');
+                    error.classList.remove('hidden');
+                    content.classList.add('shake');
+                    setTimeout(() => content.classList.remove('shake'), 400);
+                    return;
+                }
+                
+                if (amount < 10) {
+                    error.textContent = this.t('error_min_amount');
+                    error.classList.remove('hidden');
+                    content.classList.add('shake');
+                    setTimeout(() => content.classList.remove('shake'), 400);
+                    return;
+                }
+                
+                if (amount > this.wallet) {
+                    error.textContent = this.t('error_insufficient');
+                    error.classList.remove('hidden');
+                    content.classList.add('shake');
+                    setTimeout(() => content.classList.remove('shake'), 400);
+                    return;
+                }
+                
+                const price = this.prices[this.currentAsset];
+                const fee = amount * 0.001;
+                const invested = amount - fee;
+                const tp = parseFloat(document.getElementById('takeProfit').value) || null;
+                const sl = parseFloat(document.getElementById('stopLoss').value) || null;
+                
+                const position = {
+                    id: Date.now(),
+                    symbol: this.currentAsset,
+                    type: this.tradeType,
+                    entry: price,
+                    amount: invested,
+                    size: invested / price,
+                    tp: tp,
+                    sl: sl,
+                    time: new Date().toLocaleString()
+                };
+                
+                this.wallet -= amount;
+                this.positions.push(position);
+                this.saveData();
+                this.updateUI();
+                this.closeTradeModal();
+                this.showNotification(`${this.t('position_opened')}: ${this.tradeType.toUpperCase()} ${this.currentAsset}`, 'success');
+            }
+
+            checkPositions() {
+                let unrealizedPnL = 0;
+                let positionsToClose = [];
+                
+                this.positions.forEach(pos => {
+                    const currentPrice = this.prices[pos.symbol];
+                    if (!currentPrice) return;
+                    
+                    let pnlPercent;
+                    if (pos.type === 'long') {
+                        pnlPercent = ((currentPrice - pos.entry) / pos.entry) * 100;
+                    } else {
+                        pnlPercent = ((pos.entry - currentPrice) / pos.entry) * 100;
+                    }
+                    
+                    const pnl = (pnlPercent / 100) * pos.amount;
+                    unrealizedPnL += pnl;
+                    
+                    if (pos.tp && pnlPercent >= pos.tp) {
+                        positionsToClose.push({ id: pos.id, reason: 'TP' });
+                    } else if (pos.sl && pnlPercent <= -pos.sl) {
+                        positionsToClose.push({ id: pos.id, reason: 'SL' });
+                    }
+                });
+                
+                positionsToClose.forEach(({ id, reason }) => {
+                    this.closePosition(id, reason);
+                });
+                
+                const pnlEl = document.getElementById('unrealizedPnL');
+                pnlEl.textContent = `${unrealizedPnL >= 0 ? '+' : ''}$${unrealizedPnL.toFixed(2)}`;
+                pnlEl.className = `text-sm font-mono font-bold ${unrealizedPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`;
+                
+                const totalEquity = this.wallet + this.positions.reduce((sum, p) => {
+                    const price = this.prices[p.symbol] || p.entry;
+                    let pnlPercent = p.type === 'long' 
+                        ? ((price - p.entry) / p.entry) * 100 
+                        : ((p.entry - price) / p.entry) * 100;
+                    return sum + p.amount + (pnlPercent / 100) * p.amount;
+                }, 0);
+                
+                document.getElementById('totalEquity').textContent = '$' + totalEquity.toFixed(2);
+                
+                this.renderPositions();
+            }
+
+            renderPositions() {
+                const container = document.getElementById('positionsList');
+                
+                if (this.positions.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-center py-8 text-slate-500">
+                            <span class="text-3xl">💤</span>
+                            <p class="text-xs mt-2">${this.t('no_positions')}</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                container.innerHTML = this.positions.map(pos => {
+                    const currentPrice = this.prices[pos.symbol] || pos.entry;
+                    let pnlPercent = pos.type === 'long'
+                        ? ((currentPrice - pos.entry) / pos.entry) * 100
+                        : ((pos.entry - currentPrice) / pos.entry) * 100;
+                    const pnl = (pnlPercent / 100) * pos.amount;
+                    const isUp = pnl >= 0;
+                    
+                    return `
+                        <div class="bg-slate-800/50 p-3 rounded-lg border ${isUp ? 'border-emerald-500/20' : 'border-red-500/20'}">
+                            <div class="flex justify-between items-start mb-2">
+                                <div class="flex items-center gap-2">
+                                    ${this.createIconElement(pos.symbol, 'small')}
+                                    <div>
+                                        <span class="font-bold text-white text-sm">${pos.symbol}</span>
+                                        <span class="ml-1 text-[9px] px-1.5 py-0.5 rounded ${pos.type === 'long' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'} uppercase">${pos.type}</span>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-mono text-sm ${isUp ? 'text-emerald-400' : 'text-red-400'}">${isUp ? '+' : ''}$${pnl.toFixed(2)}</div>
+                                    <div class="text-[9px] text-slate-500">${pnlPercent.toFixed(2)}%</div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <div class="text-[10px] text-slate-500">
+                                    <div>${this.t('entry')}: $${this.formatPrice(pos.entry)}</div>
+                                    <div>${this.t('current')}: $${this.formatPrice(currentPrice)}</div>
+                                </div>
+                                <button onclick="app.closePosition(${pos.id})" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-[10px] rounded-lg transition">${this.t('close')}</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            closePosition(id, reason = null) {
+                const index = this.positions.findIndex(p => p.id === id);
+                if (index === -1) return;
+                
+                const pos = this.positions[index];
+                const currentPrice = this.prices[pos.symbol] || pos.entry;
+                
+                let pnlPercent = pos.type === 'long'
+                    ? ((currentPrice - pos.entry) / pos.entry) * 100
+                    : ((pos.entry - currentPrice) / pos.entry) * 100;
+                const pnl = (pnlPercent / 100) * pos.amount;
+                const returnAmount = pos.amount + pnl;
+                
+                this.wallet += returnAmount;
+                this.positions.splice(index, 1);
+                
+                this.history.unshift({
+                    ...pos,
+                    exit: currentPrice,
+                    pnl: pnl,
+                    pnlPercent: pnlPercent,
+                    reason: reason,
+                    closedAt: new Date().toLocaleString()
+                });
+                
+                if (pnl > 0) {
+                    this.addXP(Math.floor(pnl * 2));
+                    if (typeof confetti !== 'undefined') {
+                        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+                    }
+                    this.showNotification(`${this.t('profit')}: +$${pnl.toFixed(2)}`, 'success');
+                } else {
+                    this.showNotification(`${this.t('loss')}: -$${Math.abs(pnl).toFixed(2)}`, 'error');
+                }
+                
+                this.saveData();
+                this.updateUI();
+            }
+
+            closeAllPositions() {
+                if (this.positions.length === 0) return;
+                [...this.positions].forEach(p => this.closePosition(p.id));
+            }
+
+            // ============================================
+            // GAMIFICATION
+            // ============================================
+            addXP(amount) {
+                this.xp += amount;
+                const needed = this.level * 500;
+                
+                while (this.xp >= needed) {
+                    this.level++;
+                    this.xp -= needed;
+                    this.showNotification(`🎉 Level Up! Level ${this.level}`, 'success');
+                }
+                
+                this.saveData();
+                this.updateUI();
+            }
+
+            // ============================================
+            // UI UPDATES
+            // ============================================
+            updateUI() {
+                document.getElementById('walletBalance').textContent = '$' + this.wallet.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                document.getElementById('pfBalance').textContent = '$' + this.wallet.toFixed(2);
+                
+                document.getElementById('playerLevel').textContent = this.level;
+                document.getElementById('pfLevel').textContent = this.level;
+                
+                const needed = this.level * 500;
+                const percent = (this.xp / needed) * 100;
+                document.getElementById('xpBar').style.width = `${percent}%`;
+                
+                const ranks = ['Novato', 'Aprendiz', 'Trader', 'Pro', 'Expert', 'Whale 🐋'];
+                const rankIndex = Math.min(Math.floor(this.level / 3), ranks.length - 1);
+                document.getElementById('playerRank').textContent = ranks[rankIndex];
+                
+                const wins = this.history.filter(h => h.pnl >= 0).length;
+                const total = this.history.length;
+                const winRate = total > 0 ? ((wins / total) * 100).toFixed(0) : '--';
+                document.getElementById('winRate').textContent = winRate !== '--' ? `${winRate}%` : '--';
+                document.getElementById('totalTrades').textContent = total;
+                
+                const profits = this.history.filter(h => h.pnl > 0).reduce((s, h) => s + h.pnl, 0);
+                const losses = Math.abs(this.history.filter(h => h.pnl < 0).reduce((s, h) => s + h.pnl, 0));
+                document.getElementById('pfProfits').textContent = '+$' + profits.toFixed(2);
+                document.getElementById('pfLosses').textContent = '-$' + losses.toFixed(2);
+                
+                this.renderPositions();
+                this.renderHistory();
+            }
+
+            renderHistory() {
+                const container = document.getElementById('historyList');
+                
+                if (this.history.length === 0) {
+                    container.innerHTML = `<p class="text-center py-10 text-slate-500 italic text-sm">${this.t('no_history')}</p>`;
+                    return;
+                }
+                
+                container.innerHTML = this.history.slice(0, 50).map(h => `
+                    <div class="flex items-center justify-between p-3 sm:p-4 hover:bg-white/5">
+                        <div class="flex items-center gap-2 sm:gap-3">
+                            ${this.createIconElement(h.symbol, 'small')}
+                            <div>
+                                <div class="font-bold text-white text-sm">${h.symbol} <span class="text-[10px] sm:text-xs text-slate-500">(${h.type.toUpperCase()})</span></div>
+                                <div class="text-[10px] text-slate-500">${h.closedAt}</div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="font-mono font-bold text-sm ${h.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}">${h.pnl >= 0 ? '+' : ''}$${h.pnl.toFixed(2)}</div>
+                            <div class="text-[10px] text-slate-500">${h.reason || 'Manual'}</div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            switchView(view) {
+                // Close mobile panels
+                document.getElementById('assetSidebar').classList.remove('show-mobile');
+                document.getElementById('positionsSidebar').classList.remove('show-mobile');
+                
+                ['terminal', 'portfolio', 'learn'].forEach(v => {
+                    const el = document.getElementById(`view-${v}`);
+                    const nav = document.getElementById(`nav-${v}`);
+                    const mobNav = document.getElementById(`mob-nav-${v}`);
+                    
+                    if (el) el.classList.toggle('hidden', v !== view);
+                    if (nav) {
+                        nav.classList.toggle('bg-blue-600', v === view);
+                        nav.classList.toggle('hover:bg-white/10', v !== view);
+                    }
+                    if (mobNav) {
+                        mobNav.classList.toggle('active', v === view);
+                    }
+                });
+            }
+
+            // ============================================
+            // MODALS
+            // ============================================
+            closeWelcome() {
+                const modal = document.getElementById('welcomeModal');
+                if (modal) {
+                    modal.style.display = 'none';
+                    modal.remove();
+                }
+            }
+
+            refillBalance() {
+                if (this.wallet < 100 && this.positions.length === 0) {
+                    if (confirm('Refill balance to $10,000?')) {
+                        this.wallet = 10000;
+                        this.saveData();
+                        this.updateUI();
+                        this.showNotification('Balance refilled! 💰', 'success');
+                    }
+                }
+            }
+
+            clearHistory() {
+                if (confirm('Clear all history?')) {
+                    this.history = [];
+                    this.saveData();
+                    this.renderHistory();
+                }
+            }
+
+            // ============================================
+            // UTILITIES
+            // ============================================
+            formatPrice(price) {
+                price = parseFloat(price) || 0;
+                if (price >= 1000) return price.toLocaleString(undefined, { maximumFractionDigits: 2 });
+                if (price >= 1) return price.toFixed(2);
+                if (price >= 0.01) return price.toFixed(4);
+                return price.toFixed(6);
+            }
+
+            formatVolume(vol) {
+                vol = parseFloat(vol) || 0;
+                if (vol >= 1e9) return (vol / 1e9).toFixed(1) + 'B';
+                if (vol >= 1e6) return (vol / 1e6).toFixed(1) + 'M';
+                if (vol >= 1e3) return (vol / 1e3).toFixed(1) + 'K';
+                return vol.toFixed(0);
+            }
+
+            showNotification(message, type = 'info') {
+                const container = document.getElementById('notifications');
+                const colors = { success: 'bg-emerald-600', error: 'bg-red-600', info: 'bg-blue-600' };
+                
+                const div = document.createElement('div');
+                div.className = `${colors[type]} text-white px-4 py-3 rounded-xl shadow-lg text-sm font-medium fade-in pointer-events-auto`;
+                div.textContent = message;
+                container.appendChild(div);
+                
+                setTimeout(() => div.remove(), 4000);
+            }
+
+            saveData() {
+                localStorage.setItem('tradeSim_wallet', this.wallet);
+                localStorage.setItem('tradeSim_positions', JSON.stringify(this.positions));
+                localStorage.setItem('tradeSim_history', JSON.stringify(this.history));
+                localStorage.setItem('tradeSim_xp', this.xp);
+                localStorage.setItem('tradeSim_level', this.level);
+            }
+        }
+
+        // Initialize App
+        const app = new TradingApp();
+    </script>
+</body>
+</html>
